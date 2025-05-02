@@ -1,5 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
+from django.conf import settings
+from django.utils import timezone
+
+from datetime import timedelta
+
+from rest_framework.authtoken.models import Token
 
 
 class CustomGroupModel(Group):
@@ -46,3 +52,13 @@ class PendingUser(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class ExpiringToken(Token):
+    expires = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.expires:
+            self.expires = timezone.now() + timedelta(minutes=1)  # Set the token to expire after 1 minute
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires

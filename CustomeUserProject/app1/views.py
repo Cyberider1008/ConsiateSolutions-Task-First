@@ -6,11 +6,16 @@ from django.utils import timezone
 # from django.core.mail import send_mail
 
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import generics
+# from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
+from datetime import timedelta
 
-from .models import CustomUserModel, CustomGroupModel, PendingUser
+
+
+from .models import CustomUserModel, CustomGroupModel, PendingUser, ExpiringToken
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -43,7 +48,7 @@ def register(request):
 
         # Send OTP email to the user
         subject = 'Please verify your email with OTP'
-        message = f'Hi {username},\nYour OTP is: {otp}'
+        # message = f'Hi {username},\nYour OTP is: {otp}'
 
         from_email = 'abaranwal.it@gmail.com'
         to_email = [email]
@@ -113,17 +118,17 @@ def login_view(request):
     serializer = LoginSerializer(data = request.data)
     if serializer.is_valid():
         user = serializer.validated_data['user']
-        return Response({'message': f'Welcome, {user.username}!'}, status=status.HTTP_200_OK)
+
+        if user:
+            token, created = ExpiringToken.objects.get_or_create(user=user)
+            if created:
+                token.expires = timezone.now() + timedelta(minutes=1)  # Set token to expire in 1 minute
+                token.save()
+
+        return Response({'message': f'Welcome, {user.username}!', 'token': token.key, 'user_id': user.id,'expires_at': token.created + timedelta(minutes=1),}, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# @api_view(["POST"])
-# def add_user_to_group(request):
-#     serializer = AddUsrToGrpSerializer(data=request.data)
-#     if serializer.is_valid():
-#         result = serializer.save()
-#         return Response(result, status=status.HTTP_200_OK)
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
@@ -133,7 +138,6 @@ def add_users_to_group(request):
     if serializer.is_valid():
         group_name = serializer.validated_data['name']
         user_ids = serializer.validated_data.get('users', [])
-        print("------", user_ids)
 
         # Check if the group exists
         group = CustomGroupModel.objects.filter(name=group_name).first()
@@ -162,6 +166,7 @@ def add_users_to_group(request):
 
 #################################################################3
 @api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
 def user_list_create(request):
     if request.method == 'GET':
         users = CustomUserModel.objects.all()

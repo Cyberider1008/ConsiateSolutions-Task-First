@@ -22,7 +22,6 @@ urlpatterns = [
  
     # Custom group actions
     path('groups/search/', views.get_groups, name='get-groups'),                # 8 search by name
-    # path('groups/add-user/', views.add_user_to_group),                          # add user to group
     path('groups/with-users/', views.group_list_with_users),                    # all groups + users
 
 

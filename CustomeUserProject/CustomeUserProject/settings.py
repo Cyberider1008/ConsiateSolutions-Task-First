@@ -30,9 +30,25 @@ INSTALLED_APPS = [
 
     # Third-Party app
     'rest_framework',
+    'rest_framework.authtoken',
 ]
 
+# AUTH_USER_MODEL = 'app1.CustomUserModel'
+# AUTH_TOKEN_MODEL = 'app1.ExpiringToken'
 
+# Set the custom token model
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'app1.authentication.CustomAuthentication',  # Custom authentication class for token
+    ],
+}
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    # other backends
+]
+
+# Email setting
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -50,6 +66,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'app1.middleware.ExpiringTokenMiddleware',  # Add this
 ]
 
 ROOT_URLCONF = 'CustomeUserProject.urls'
