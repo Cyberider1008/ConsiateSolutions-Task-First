@@ -1,5 +1,12 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
+
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'categories', views.CategoryViewSet)
+router.register(r'products', views.ProductViewSet)
+router.register(r'product-categories', views.ProductCategoryViewSet)
 
 urlpatterns = [
     # Auth
@@ -23,6 +30,11 @@ urlpatterns = [
     # Custom group actions
     path('groups/search/', views.get_groups, name='get-groups'),                # 8 search by name
     path('groups/with-users/', views.group_list_with_users),                    # all groups + users
+
+    #Product using default router
+    path('', include(router.urls)),
+
+
 
 
 ]

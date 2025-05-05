@@ -31,15 +31,20 @@ INSTALLED_APPS = [
     # Third-Party app
     'rest_framework',
     'rest_framework.authtoken',
+    'django_filters',
 ]
 
-# AUTH_USER_MODEL = 'app1.CustomUserModel'
-# AUTH_TOKEN_MODEL = 'app1.ExpiringToken'
 
 # Set the custom token model
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'app1.authentication.CustomAuthentication',  # Custom authentication class for token
+        
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        # 'rest_framework.filters.SearchFilter',
+        # 'rest_framework.filters.OrderingFilter',
     ],
 }
 

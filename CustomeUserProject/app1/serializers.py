@@ -1,11 +1,20 @@
 from rest_framework import serializers
 
+
 from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 
-from .models import CustomUserModel, CustomGroupModel, PendingUser
+from .models import (
+    CustomUserModel,
+    CustomGroupModel,
+    PendingUser,
+    Product,
+    Category,
+    ProductCategory,
+)
+
 
 
 User = get_user_model()
@@ -45,27 +54,6 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
-
-# class AddUsrToGrpSerializer(serializers.Serializer):
-#     username = serializers.CharField()
-#     group_name = serializers.CharField()
-
-#     def validate(self, data):
-#         try:
-#             data['user'] = User.objects.get(username=data['username'])
-#         except User.DoesNotExist:
-#             raise serializers.ValidationError("User not found")
-
-#         try:
-#             data['group'] = CustomGroupModel.objects.get(name=data['group_name'])
-#         except CustomGroupModel.DoesNotExist:
-#             raise serializers.ValidationError("Group not found")
-
-#         return data
-
-#     def create(self, validated_data):
-#         validated_data['group'].user_set.add(validated_data['user'])
-#         return {"message": "User added to group"}
 
 
 class GroupCreateSerializers(serializers.Serializer):
@@ -138,3 +126,37 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomGroupModel
         fields = ['id', 'name', 'description', 'users']
+
+
+
+###############
+
+# category and product serializers here
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'description']
+
+class ProductSerializer(serializers.ModelSerializer):
+    categories = CategorySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'description', 'categories', 'is_active']
+
+
+
+class ProductCategorySerializer(serializers.ModelSerializer):
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+
+    class Meta:
+        model = ProductCategory
+        fields = ['product', 'category']
+    
+    def to_representation(self, instance):
+        return {
+            'product': ProductSerializer(instance.product).data,
+            'category': CategorySerializer(instance.category).data
+        }

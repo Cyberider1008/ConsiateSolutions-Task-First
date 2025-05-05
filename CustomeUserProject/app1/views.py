@@ -5,17 +5,30 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 # from django.core.mail import send_mail
 
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, BooleanFilter
+
 from rest_framework import status
+from rest_framework import viewsets, filters
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import generics
-# from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
+# from rest_framework.authtoken.models import Token
+
 from datetime import timedelta
 
 
+from .models import (
+    CustomUserModel,
+    CustomGroupModel,
+    PendingUser,
+    ExpiringToken,
+    Product,
+    Category,
+    ProductCategory
+)
 
-from .models import CustomUserModel, CustomGroupModel, PendingUser, ExpiringToken
+
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -25,6 +38,10 @@ from .serializers import (
     GroupWithUsersSerializer,
     GroupCreateSerializers,
     GroupSerializer,
+    ProductSerializer,
+    CategorySerializer,
+    ProductCategorySerializer
+
 )
 
 
@@ -271,3 +288,47 @@ class GroupListCreateView(generics.ListCreateAPIView):
 class GroupDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = CustomGroupModel.objects.all()
     serializer_class = GroupSerializer
+
+
+
+##########
+# Product and Category here
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+
+
+class ProductFilter(FilterSet):
+    is_active = BooleanFilter(field_name='is_active', lookup_expr='exact')
+
+    class Meta:
+        model = Product
+        fields = ['is_active']
+
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    
+    # add both search and ordering
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter,  DjangoFilterBackend]
+
+
+    # Add filter class
+    filterset_class = ProductFilter
+
+
+    #Fields that can be searched using ?search=...
+    search_fields = ['name', 'description']         # we can use category__name double underscore
+
+    # Fields that can be sorted using ?ordering=...
+    ordering_fields = ['id', 'name', 'description']
+
+
+
+
+class ProductCategoryViewSet(viewsets.ModelViewSet):
+    queryset = ProductCategory.objects.all()
+    serializer_class = ProductCategorySerializer

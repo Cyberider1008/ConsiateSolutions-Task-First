@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import CustomUserModel, CustomGroupModel, PendingUser
+from .models import (
+    CustomUserModel,
+    CustomGroupModel,
+    PendingUser,
+    Product,
+    Category,
+)
+
 from django.contrib.auth.admin import UserAdmin, GroupAdmin
 
 class CustomUserAdmin(UserAdmin):

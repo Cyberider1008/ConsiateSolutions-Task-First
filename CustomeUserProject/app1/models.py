@@ -62,3 +62,31 @@ class ExpiringToken(Token):
 
     def is_expired(self):
         return timezone.now() > self.expires
+
+
+#Product and Category Models here
+
+class Category(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.name
+
+class Product(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+
+    def __str__(self):
+        return self.name
+
+
+
+class ProductCategory(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('product', 'category')
