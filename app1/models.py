@@ -27,6 +27,11 @@ class CustomGroupModel(Group):
 class CustomUserModel(User):
     ph_no = models.CharField(max_length=100, null=True)
     post = models.CharField(max_length=100, null=True)
+    address = models.TextField()
+    city = models.CharField(max_length=100)
+    pincode = models.CharField(max_length=10)
+    country = models.CharField(max_length=100, default='India')
+
 
     group = models.ForeignKey(
         CustomGroupModel,
@@ -92,3 +97,73 @@ class ProductCategory(models.Model):
 
     class Meta:
         unique_together = ("product", "category")
+
+
+
+# oredr and payment
+
+class Order(models.Model):
+    PICKUP = 'PICKUP'
+    DELIVERY = 'DELIVERY'
+    DINEIN = 'DINE_IN'
+
+    ORDER_TYPE = {
+        PICKUP:'Pickup',
+        DELIVERY:'Delivery',
+        DINEIN:'Dine_in'
+    }
+
+    PENDING = 'PENDIND'
+    PROCESSING = 'PROCESSING'
+    COMPLETE = 'COMPLETE'
+    READY = 'READY'
+    CANCEL = 'CANCEL'
+
+    ORDER_STATUS = {
+        PENDING:'Pending',
+        PROCESSING:'Processing',
+        COMPLETE:'Complete',
+        READY:'Ready',
+        CANCEL:'Cancel'
+    }
+
+    
+    customer= models.CharField(max_length=255)
+    
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    delivery_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    type = models.CharField(max_length=20, choices=ORDER_TYPE, default=PICKUP, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=ORDER_STATUS, default=PENDING, null=True, blank=True)
+    shipping_address = models.TextField()
+    placed_by = models.ForeignKey(CustomUserModel, on_delete=models.CASCADE)
+    paid = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return str(self.customer)  + "   "+ str(self.id)
+    
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product.name}"
+
+class Payment(models.Model):
+    payment_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_mode = models.CharField(max_length=50)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payment')
+    reference_id = models.CharField(max_length=50, blank=True, null=True, unique=True)
+
+
+
+
+

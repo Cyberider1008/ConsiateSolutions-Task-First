@@ -1,12 +1,22 @@
 import random
+import threading
 
+from django.http import JsonResponse
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.db.models import Sum
+from django.core.paginator import Paginator
+from django.views.decorators.http import require_GET
 
+# from .signals import order_confirmed, create_loyalty_point
+# from django.core.mail import EmailMultiAlternatives
 # from django.core.mail import send_mail
+# from rest_framework.authtoken.models import Token
 
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, CharFilter
+
+from threading import Thread
 
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework import status
@@ -16,11 +26,9 @@ from rest_framework.response import Response
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
-# from rest_framework.authtoken.models import Token
+from rest_framework.viewsets import ModelViewSet
 
 from datetime import timedelta
-
-
 from .models import (
     CustomUserModel,
     CustomGroupModel,
@@ -29,8 +37,10 @@ from .models import (
     Product,
     Category,
     ProductCategory,
+    Order,
+    OrderItem,
+    Payment,
 )
-
 
 from .serializers import (
     RegisterSerializer,
@@ -44,13 +54,15 @@ from .serializers import (
     ProductSerializer,
     CategorySerializer,
     ProductCategorySerializer,
+    OrderSerializer,
+    PaymentSerializer
 )
 
+from django.db import transaction
 
 # simple Registration and Login with API
-
-
 # Handle user registration and send OTP to email
+
 @api_view(["POST"])
 def register(request):
     serializer = RegisterSerializer(data=request.data)
@@ -77,22 +89,26 @@ def register(request):
         html_content = render_to_string("app1/emails/otp.html", context)
         text_content = "OTP  here!"
 
-        # Send the email
-        email = EmailMultiAlternatives(subject, text_content, from_email, to_email)
-        email.attach_alternative(html_content, "text/html")
-        email.send()
+        # Send the email for old option
+        # email = EmailMultiAlternatives(subject, text_content, from_email, to_email)
+        # email.attach_alternative(html_content, "text/html")
+        # email.send()
 
-        #     subject,
-        # send_mail(
-        #     message,
-        #     'abaranwal.it@gmail.com',
-        #     [email],
-        #     fail_silently=False,
-        # )
+        def send_otp_email():
+            try:
+                email_message = EmailMultiAlternatives(
+                    subject, text_content, from_email, to_email
+                )
+                email_message.attach_alternative(html_content, "text/html")
+                email_message.send(fail_silently = False)
+            except Exception as e:
+                print("Error sending email:", e)
 
-        return Response({"message": "OTP sent to email"}, status=status.HTTP_200_OK)
+        threading.Thread(target = send_otp_email).start()
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message" : "OTP sent to email"}, status = status.HTTP_200_OK)
+
+    return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
 
 
 # Verify OTP and create the actual user account
@@ -331,3 +347,90 @@ class ProductViewSet(viewsets.ModelViewSet):
 class ProductCategoryViewSet(viewsets.ModelViewSet):
     queryset = ProductCategory.objects.all()
     serializer_class = ProductCategorySerializer
+
+
+# order and payments
+
+
+###################order
+
+
+# Order and Payments Views
+
+################### Order ###################
+
+class PlaceOrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    # permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'message': 'Order placed successfully',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+############payments###############
+class PaymentViewSet(viewsets.ModelViewSet):
+    queryset = Payment.objects.all()
+    serializer_class = PaymentSerializer
+    # permission_classes = [IsAuthenticated]
+
+
+@require_GET
+def order_list_view(request):
+    page_number = request.GET.get('page',1)
+    print("------page number",page_number)
+    page_size = request.GET.get('page_size',5)
+    print("--------page_size",page_size)
+    orders = Order.objects.select_related('placed_by').prefetch_related('items__product').all().order_by('-created_at')
+
+    paginator = Paginator(orders, page_size)
+    print("-----paginator", paginator)
+    page_obj = paginator.get_page(page_number)
+    print("-----page_obj", page_obj)
+
+    data = []
+
+    for order in page_obj:
+        order_data = {
+            'order_id': order.id,
+            'customer': order.customer,
+            'total': float(order.total),
+            'paid_amount': float(order.paid_amount),
+            'status': order.status,
+            'order_type': order.type,
+            'shipping_address': order.shipping_address,
+            'paid': order.paid,
+            'created_at': order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'placed_by': {
+                'id': order.placed_by.id,
+                'username': order.placed_by.username,
+                'email': order.placed_by.email
+            },
+            'items': []
+        }
+
+        for item in order.items.all():
+            order_data['items'].append({
+                'product_id': item.product.id,
+                'product_name': item.product.name,
+                'price': float(item.price),
+                'quantity': item.quantity
+            })
+
+        data.append(order_data)
+
+    return JsonResponse({
+        'page': page_obj.number,
+        'total_pages': paginator.num_pages,
+        'total_orders': paginator.count,
+        'orders': data
+    }, safe=False)

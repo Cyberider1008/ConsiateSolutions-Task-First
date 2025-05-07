@@ -8,6 +8,12 @@ router.register(r"categories", views.CategoryViewSet)
 router.register(r"products", views.ProductViewSet)
 router.register(r"product-categories", views.ProductCategoryViewSet)
 
+# placeorder
+router.register(r'orders', views.PlaceOrderViewSet, basename='order')
+router.register(r'payments', views.PaymentViewSet, basename='payment')
+
+
+
 urlpatterns = [
     # Auth
     path("register/", views.register),
@@ -30,5 +36,11 @@ urlpatterns = [
     path("groups/search/", views.get_groups, name="get-groups"),  # 8 search by name
     path("groups/with-users/", views.group_list_with_users),  # all groups + users
     # Product using default router
+
+    # order list view 
+    path('orders_list/', views.order_list_view, name='order-list'),
+
     path("", include(router.urls)),
+
+    
 ]

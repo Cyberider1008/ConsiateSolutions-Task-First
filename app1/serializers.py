@@ -13,6 +13,9 @@ from .models import (
     Product,
     Category,
     ProductCategory,
+    Order,
+    OrderItem,
+    Payment,
 )
 
 
@@ -68,6 +71,13 @@ class UserSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=120, required=False)
     email = serializers.EmailField(required=False)
     password = serializers.CharField(write_only=True, required=False)
+    address = serializers.CharField(required=False)
+    city = serializers.CharField(required=False)
+    pincode = serializers.CharField(required=False)
+    country = serializers.CharField(required=False)
+
+
+
 
     def validate_username(self, value):
         if self.instance:
@@ -96,6 +106,11 @@ class UserSerializer(serializers.Serializer):
         instance.email = validated_data.get("email", instance.email)
         instance.ph_no = validated_data.get("ph_no", instance.ph_no)
         instance.post = validated_data.get("post", instance.post)
+        instance.address = validated_data.get("address", instance.address)
+        instance.city = validated_data.get("city", instance.city)
+        instance.pincode = validated_data.get("pincode", instance.pincode)
+        instance.country = validated_data.get("country", instance.country)
+
         if "password" in validated_data:
             instance.password = make_password(validated_data["password"])
         instance.save()
@@ -159,3 +174,87 @@ class ProductCategorySerializer(serializers.ModelSerializer):
             "category": CategorySerializer(instance.category).data,
         }
 
+
+# order and payments
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(is_active=True), source='product'
+    )
+
+    class Meta:
+        model = OrderItem
+        fields = ['product_id', 'price', 'quantity']
+
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True)
+    
+    class Meta:
+        model = Order
+        fields = [
+            'customer', 'subtotal', 'delivery_charge', 'discount',
+            'total', 'paid_amount', 'type', 'status', 'shipping_address',
+            'placed_by', 'paid', 'items'
+        ]
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        order = Order.objects.create(**validated_data)
+
+        for item_data in items_data:
+            OrderItem.objects.create(order=order, **item_data)
+
+        return order
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    remaining_balance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Payment
+        fields = ['payment_amount', 'payment_mode', 'order', 'reference_id', 'remaining_balance']
+
+    def get_remaining_balance(self, obj):
+        order = obj.order
+        # Get all payments sorted by creation time
+        payments = order.payment.order_by('id')
+        total_paid = 0
+
+        for p in payments:
+            total_paid += p.payment_amount
+            if p.id == obj.id:
+                break
+
+        return float(order.total - total_paid)
+
+    def validate(self, data):
+        order = data['order']
+        new_amount = data['payment_amount']
+
+        if order.paid:
+            raise serializers.ValidationError("This order has already been fully paid.")
+
+        existing_payments = order.payment.all()
+        total_paid = sum(p.payment_amount for p in existing_payments)
+        remaining_amount = order.total - total_paid
+
+        if new_amount > remaining_amount:
+            raise serializers.ValidationError({
+                "payment_amount": f"Payment exceeds the remaining amount of ₹{remaining_amount:.2f}."
+            })
+
+        return data
+
+    def create(self, validated_data):
+        order = validated_data['order']
+        new_amount = validated_data['payment_amount']
+
+        existing_payments = order.payment.all()
+        total_paid = sum(p.payment_amount for p in existing_payments) + new_amount
+
+        order.paid_amount = total_paid
+        if total_paid >= order.total:
+            order.paid = True
+        order.save()
+
+        return super().create(validated_data)
