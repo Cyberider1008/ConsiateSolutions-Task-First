@@ -7,7 +7,6 @@ from datetime import timedelta
 
 from rest_framework.authtoken.models import Token
 
-
 class CustomGroupModel(Group):
     description = models.TextField(blank=True, null=True)
 
@@ -32,7 +31,6 @@ class CustomUserModel(User):
     pincode = models.CharField(max_length=10)
     country = models.CharField(max_length=100, default='India')
 
-
     group = models.ForeignKey(
         CustomGroupModel,
         on_delete=models.SET_NULL,
@@ -55,7 +53,6 @@ class PendingUser(models.Model):
     otp = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
 
-
 class ExpiringToken(Token):
     expires = models.DateTimeField()
 
@@ -69,10 +66,7 @@ class ExpiringToken(Token):
     def is_expired(self):
         return timezone.now() > self.expires
 
-
 # Product and Category Models here
-
-
 class Category(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -80,7 +74,6 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
-
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
@@ -90,7 +83,6 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
-
 class ProductCategory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
@@ -98,10 +90,7 @@ class ProductCategory(models.Model):
     class Meta:
         unique_together = ("product", "category")
 
-
-
 # oredr and payment
-
 class Order(models.Model):
     PICKUP = 'PICKUP'
     DELIVERY = 'DELIVERY'
@@ -127,15 +116,13 @@ class Order(models.Model):
         CANCEL:'Cancel'
     }
 
-    
     customer= models.CharField(max_length=255)
-    
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     delivery_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    
+
     type = models.CharField(max_length=20, choices=ORDER_TYPE, default=PICKUP, null=True, blank=True)
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default=PENDING, null=True, blank=True)
     shipping_address = models.TextField()
@@ -157,8 +144,6 @@ class OrderItem(models.Model):
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
 
-
-
 class Payment(models.Model):
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_mode = models.CharField(max_length=50)
@@ -168,8 +153,4 @@ class Payment(models.Model):
 
     def __str__(self):
         return str(self.payment_amount) + "  " + self.payment_mode
-
-
-
-
 

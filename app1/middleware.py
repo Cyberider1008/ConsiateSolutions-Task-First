@@ -1,14 +1,15 @@
-# your_app/middleware.py
-
 from django.utils.deprecation import MiddlewareMixin
 from django.http import JsonResponse
-from .models import ExpiringToken
 from django.utils import timezone
+
+from .models import ExpiringToken
 from datetime import timedelta
 
 class ExpiringTokenMiddleware(MiddlewareMixin):
+
     def process_request(self, request):
         auth_header = request.headers.get('Authorization')
+
         if not auth_header or not auth_header.startswith('Token '):
             return None  # or raise AuthenticationFailed
 

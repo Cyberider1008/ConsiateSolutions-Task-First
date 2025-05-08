@@ -7,7 +7,7 @@ class OrderConsumer(WebsocketConsumer):
         self.accept()
         self.send(text_data=json.dumps({
             'type': 'websocket.connect',
-            'message': '----Connected1'
+            'message': "Connected......!"
         }))
 
     def receive(self, event=None, text_data=None):

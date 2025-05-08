@@ -1,6 +1,4 @@
 from rest_framework import serializers
-
-
 from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
@@ -18,9 +16,7 @@ from .models import (
     Payment,
 )
 
-
 User = get_user_model()
-
 
 class RegisterSerializer(serializers.Serializer):
     ph_no = serializers.CharField(max_length=100)
@@ -32,17 +28,17 @@ class RegisterSerializer(serializers.Serializer):
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Username is already taken")
+        
         return value
 
     def create(self, validated_data):
         # validated_data['password'] = make_password(validated_data['password'])
+        
         return PendingUser.objects.create(**validated_data)
-
 
 class OTPVerifySerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(max_length=6)
-
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -50,19 +46,16 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, data):
         user = authenticate(username=data["username"], password=data["password"])
+        
         if user is None:
             raise serializers.ValidationError("Invalid username or password")
+        
         data["user"] = user
         return data
-
 
 class GroupCreateSerializers(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     users = serializers.ListField(child=serializers.IntegerField(), required=False)
-
-
-###########################
-
 
 class UserSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
@@ -76,14 +69,15 @@ class UserSerializer(serializers.Serializer):
     pincode = serializers.CharField(required=False)
     country = serializers.CharField(required=False)
 
-
-
-
     def validate_username(self, value):
+        
         if self.instance:
+        
             # If username is unchanged, don't validate
             if self.instance.username == value:
+        
                 return value
+        
             # If username is changed, check if new one already exists for another user
             if (
                 CustomUserModel.objects.filter(username=value)
@@ -92,9 +86,11 @@ class UserSerializer(serializers.Serializer):
             ):
                 raise serializers.ValidationError("Username is already taken")
         else:
+        
             # If creating a new user
             if CustomUserModel.objects.filter(username=value).exists():
                 raise serializers.ValidationError("Username is already taken")
+        
         return value
 
     def create(self, validated_data):
@@ -114,41 +110,33 @@ class UserSerializer(serializers.Serializer):
         if "password" in validated_data:
             instance.password = make_password(validated_data["password"])
         instance.save()
+        
         return instance
 
-
-############################
 # fetch user and group get method
-
-
 class UserSummarySerializer(serializers.ModelSerializer):
+
     class Meta:
         model = CustomUserModel
         fields = ["id", "username", "email"]
 
-
 class GroupWithUsersSerializer(serializers.ModelSerializer):
     users = UserSummarySerializer(source="user_set", many=True)
-
+    
     class Meta:
         model = CustomGroupModel
         fields = ["id", "name", "users"]
 
-
 class GroupSerializer(serializers.ModelSerializer):
     users = UserSerializer(source="members", many=True, read_only=True)
-
+    
     class Meta:
         model = CustomGroupModel
         fields = ["id", "name", "description", "users"]
 
-
-###############
-
 # category and product serializers here
-
-
 class CategorySerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Category
         fields = ["id", "name", "description", "is_active"]
@@ -169,14 +157,13 @@ class ProductCategorySerializer(serializers.ModelSerializer):
         fields = ["product", "category"]
 
     def to_representation(self, instance):
+
         return {
             "product": ProductSerializer(instance.product).data,
             "category": CategorySerializer(instance.category).data,
         }
 
-
 # order and payments
-
 class OrderItemSerializer(serializers.ModelSerializer):
     product_id = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.filter(is_active=True), source='product'
@@ -188,7 +175,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)
-    
+
     class Meta:
         model = Order
         fields = [
@@ -203,9 +190,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
         for item_data in items_data:
             OrderItem.objects.create(order=order, **item_data)
-
         return order
-
 
 class PaymentSerializer(serializers.ModelSerializer):
     remaining_balance = serializers.SerializerMethodField()
@@ -219,18 +204,16 @@ class PaymentSerializer(serializers.ModelSerializer):
         # Get all payments sorted by creation time
         payments = order.payment.order_by('id')
         total_paid = 0
-
         for p in payments:
             total_paid += p.payment_amount
             if p.id == obj.id:
                 break
-
         return float(order.total - total_paid)
 
     def validate(self, data):
         order = data['order']
         new_amount = data['payment_amount']
-
+        
         if order.paid:
             raise serializers.ValidationError("This order has already been fully paid.")
 

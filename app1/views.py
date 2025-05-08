@@ -8,15 +8,12 @@ from django.utils import timezone
 from django.db.models import Sum
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_GET
-
-
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, CharFilter
 
 from threading import Thread
 
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-
 
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework import status
@@ -26,8 +23,9 @@ from rest_framework.response import Response
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
-
 from datetime import timedelta
+
+# All import Models files 
 from .models import (
     CustomUserModel,
     CustomGroupModel,
@@ -41,6 +39,7 @@ from .models import (
     Payment,
 )
 
+# All Serializers import files
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -66,7 +65,6 @@ from .serializers import (
 
 # simple Registration and Login with API
 # Handle user registration and send OTP to email
-
 @api_view(["POST"])
 def register(request):
     serializer = RegisterSerializer(data=request.data)
@@ -111,7 +109,6 @@ def register(request):
         threading.Thread(target = send_otp_email).start()
 
         return Response({"message" : "OTP sent to email"}, status = status.HTTP_200_OK)
-
     return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
 
 
@@ -146,25 +143,28 @@ def verify_otp(request):
 
         # clean up pending user
         pending_user.delete()
+
         return Response(
             {"message": f"User {user.username} created successfully"}, status=201
         )
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 @api_view(["POST"])
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
+
     if serializer.is_valid():
         user = serializer.validated_data["user"]
 
         if user:
             token, created = ExpiringToken.objects.get_or_create(user=user)
+
             if created:
                 token.expires = timezone.now() + timedelta(
                     minutes=1
                 )  # Set token to expire in 1 minute
+
                 token.save()
 
         return Response(
@@ -177,7 +177,6 @@ def login_view(request):
             status=status.HTTP_200_OK,
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(["POST"])
 def add_users_to_group(request):
@@ -199,6 +198,7 @@ def add_users_to_group(request):
         users = CustomUserModel.objects.filter(id__in=user_ids)
 
         added_users = 0
+
         for user in users:
             # Check if the user is already part of the group
             if group not in user.groups.all():
@@ -212,11 +212,11 @@ def add_users_to_group(request):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 #################################################################3
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def user_list_create(request):
+
     if request.method == "GET":
         users = CustomUserModel.objects.all()
         serializer = UserSerializer(users, many=True)
@@ -224,11 +224,13 @@ def user_list_create(request):
 
     elif request.method == "POST":
         serializer = UserSerializer(data=request.data)
+
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(["GET", "PUT", "DELETE"])
 def user_detail(request, pk):
@@ -240,20 +242,18 @@ def user_detail(request, pk):
     if request.method == "GET":
         serializer = UserSerializer(user)
         return Response(serializer.data)
-
     elif request.method == "PUT":
         serializer = UserSerializer(user, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "DELETE":
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
-##################################
 # Create GET API to fetch all user groups and their users
 @api_view(["GET"])
 def group_list_with_users(request):
@@ -261,11 +261,9 @@ def group_list_with_users(request):
     serializer = GroupWithUsersSerializer(groups, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-
 # Modify the GET API to filter users based on group ID
 @api_view(["GET"])
 def users_by_group(request, group_id=None):
-    print("-------", group_id)
     if group_id is not None:
         try:
             group = CustomGroupModel.objects.get(id=group_id)
@@ -286,13 +284,12 @@ def users_by_group(request, group_id=None):
 
     return Response(groups_data)
 
-
 # fetch group data from name
 @api_view(["GET"])
 def get_groups(request):
     group_name = request.GET.get("name", None)
-
     groups = CustomGroupModel.objects.filter(name__icontains=group_name)
+
     if groups:
 
         users = set()
@@ -306,26 +303,21 @@ def get_groups(request):
 
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-
 # class based Group CRUD operations
 # Create and List Groups
 class GroupListCreateView(generics.ListCreateAPIView):
     queryset = CustomGroupModel.objects.all()
     serializer_class = GroupSerializer
 
-
 # Retrieve, Update, Delete a Group
 class GroupDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = CustomGroupModel.objects.all()
     serializer_class = GroupSerializer
 
-
-##########
 # Product and Category here
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-
 
 # Custom filter set for Product
 class ProductFilter(FilterSet):
@@ -335,7 +327,6 @@ class ProductFilter(FilterSet):
         model = Product
         fields = ["name", "is_active"]
 
-
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().order_by("name")
     serializer_class = ProductSerializer
@@ -344,18 +335,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     filterset_class = ProductFilter
 
     ordering_fields = ["name", "-name"]  # Allow ascending and descending ordering
-
     ordering = ["name"]  # default ordering
-
 
 class ProductCategoryViewSet(viewsets.ModelViewSet):
     queryset = ProductCategory.objects.all()
     serializer_class = ProductCategorySerializer
 
-
 # order and payments
-################### Order ###################
-
 class PlaceOrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -363,10 +349,9 @@ class PlaceOrderViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-
         if serializer.is_valid():
             serializer.save()
-
+            # get id from order
             order_data = serializer.data
             order_id = order_data.get("id")
            
@@ -379,12 +364,10 @@ class PlaceOrderViewSet(viewsets.ModelViewSet):
                     "message": f"New order id {order_id} has been placed!"
                 }
             )
-            
             return Response({
                 'message': 'Order placed successfully',
                 'data': serializer.data
             }, status=status.HTTP_201_CREATED)
-        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 ############payments###############
@@ -403,9 +386,7 @@ def order_list_view(request):
     page_obj = paginator.get_page(page_number)
 
     data = []
-
     for order in page_obj:
-        print("********",order)
         order_data = {
             'order_id': order.id,
             'customer': order.customer,
@@ -439,9 +420,7 @@ def order_list_view(request):
                 'quantity': item.quantity
             })
 
-        total_paid = 0
         for payment in order.payment.all():
-            print("-----------", payment)
             order_data['payments'].append({
                 'payment_id': payment.id,
                 'payment_amount': float(payment.payment_amount),
@@ -451,7 +430,6 @@ def order_list_view(request):
             })
         
         data.append(order_data)
-
     return JsonResponse({
         'page': page_obj.number,
         'total_pages': paginator.num_pages,
