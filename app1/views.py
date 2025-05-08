@@ -9,14 +9,14 @@ from django.db.models import Sum
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_GET
 
-# from .signals import order_confirmed, create_loyalty_point
-# from django.core.mail import EmailMultiAlternatives
-# from django.core.mail import send_mail
-# from rest_framework.authtoken.models import Token
 
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, CharFilter
 
 from threading import Thread
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework import status
@@ -26,7 +26,6 @@ from rest_framework.response import Response
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
-from rest_framework.viewsets import ModelViewSet
 
 from datetime import timedelta
 from .models import (
@@ -57,8 +56,13 @@ from .serializers import (
     OrderSerializer,
     PaymentSerializer
 )
+# from .signals import order_confirmed, create_loyalty_point
+# from django.core.mail import EmailMultiAlternatives
+# from django.core.mail import send_mail
+# from rest_framework.authtoken.models import Token
+# from django.db import transaction
+# from rest_framework.viewsets import ModelViewSet
 
-from django.db import transaction
 
 # simple Registration and Login with API
 # Handle user registration and send OTP to email
@@ -350,13 +354,6 @@ class ProductCategoryViewSet(viewsets.ModelViewSet):
 
 
 # order and payments
-
-
-###################order
-
-
-# Order and Payments Views
-
 ################### Order ###################
 
 class PlaceOrderViewSet(viewsets.ModelViewSet):
@@ -369,6 +366,20 @@ class PlaceOrderViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             serializer.save()
+
+            order_data = serializer.data
+            order_id = order_data.get("id")
+           
+           # Send WebSocket message
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "products",
+                {
+                    "type": "order_placed",
+                    "message": f"New order id {order_id} has been placed!"
+                }
+            )
+            
             return Response({
                 'message': 'Order placed successfully',
                 'data': serializer.data
@@ -376,30 +387,25 @@ class PlaceOrderViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 ############payments###############
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
     # permission_classes = [IsAuthenticated]
 
-
 @require_GET
 def order_list_view(request):
     page_number = request.GET.get('page',1)
-    print("------page number",page_number)
-    page_size = request.GET.get('page_size',5)
-    print("--------page_size",page_size)
+    page_size = request.GET.get('page_size',2)
     orders = Order.objects.select_related('placed_by').prefetch_related('items__product').all().order_by('-created_at')
 
     paginator = Paginator(orders, page_size)
-    print("-----paginator", paginator)
     page_obj = paginator.get_page(page_number)
-    print("-----page_obj", page_obj)
 
     data = []
 
     for order in page_obj:
+        print("********",order)
         order_data = {
             'order_id': order.id,
             'customer': order.customer,
@@ -413,9 +419,16 @@ def order_list_view(request):
             'placed_by': {
                 'id': order.placed_by.id,
                 'username': order.placed_by.username,
-                'email': order.placed_by.email
+                'email': order.placed_by.email,
+                "ph_no" : order.placed_by.ph_no,
+                "address" : order.placed_by.address,
+                "city" : order.placed_by.city,
+                "country" : order.placed_by.country,
+                "pincode" : order.placed_by.pincode,
+                
             },
-            'items': []
+            'items': [],
+            'payments' :[]
         }
 
         for item in order.items.all():
@@ -426,6 +439,17 @@ def order_list_view(request):
                 'quantity': item.quantity
             })
 
+        total_paid = 0
+        for payment in order.payment.all():
+            print("-----------", payment)
+            order_data['payments'].append({
+                'payment_id': payment.id,
+                'payment_amount': float(payment.payment_amount),
+                'payment_mode': payment.payment_mode,
+                'reference_id': payment.reference_id,
+                'created_at': payment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+        
         data.append(order_data)
 
     return JsonResponse({
