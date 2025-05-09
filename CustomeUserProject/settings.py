@@ -35,7 +35,6 @@ INSTALLED_APPS = [
     'channels',
 
 ]
-
 ASGI_APPLICATION = "CustomeUserProject.asgi.application"
 
 # websockets
@@ -59,7 +58,6 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
     # other backends
 ]
-
 # Email setting
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
@@ -68,7 +66,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "abaranwal.it@gmail.com"
 EMAIL_HOST_PASSWORD = "okkkiixlnilrarim"
 EMAIL_USE_TLS = True
-
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -80,7 +77,6 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "app1.middleware.ExpiringTokenMiddleware",  # Add this
 ]
-
 ROOT_URLCONF = "CustomeUserProject.urls"
 
 TEMPLATES = [
@@ -99,7 +95,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "CustomeUserProject.wsgi.application"
-
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
