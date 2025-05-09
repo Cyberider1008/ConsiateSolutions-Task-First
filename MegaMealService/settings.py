@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     'channels',
 
 ]
-ASGI_APPLICATION = "CustomeUserProject.asgi.application"
+ASGI_APPLICATION = "MegaMealService.asgi.application"
 
 # websockets
 CHANNEL_LAYERS = {
@@ -77,7 +77,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "app1.middleware.ExpiringTokenMiddleware",  # Add this
 ]
-ROOT_URLCONF = "CustomeUserProject.urls"
+ROOT_URLCONF = "MegaMealService.urls"
 
 TEMPLATES = [
     {
@@ -94,7 +94,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "CustomeUserProject.wsgi.application"
+WSGI_APPLICATION = "MegaMealService.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases

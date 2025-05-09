@@ -1,5 +1,5 @@
 """
-WSGI config for CustomeUserProject project.
+WSGI config for MegaMealService project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'CustomeUserProject.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MegaMealService.settings')
 
 application = get_wsgi_application()
