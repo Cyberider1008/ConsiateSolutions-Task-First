@@ -241,3 +241,29 @@ class PaymentSerializer(serializers.ModelSerializer):
         order.save()
 
         return super().create(validated_data)
+
+
+# Excel Serializers
+class ProductExcelSerializers(serializers.ModelSerializer):
+    category = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = ('id', 'name', 'description', 'category')
+    
+    def get_category(self, obj):
+        return ", ".join([cat.name for cat in Category.objects.filter(productcategory__product=obj)])
+
+    
+class CategoryExcelSerializer(serializers.ModelSerializer):
+    products = serializers.SerializerMethodField()
+    class Meta:
+        model = Category
+        fields = ('id','name', 'products')
+
+    def get_products(self, obj):
+        products = Product.objects.filter(productcategory__category=obj)
+        return [prod.name for prod in products] if products.exists() else ""
+   
+
+    

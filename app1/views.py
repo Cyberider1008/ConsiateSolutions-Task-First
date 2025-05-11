@@ -1,6 +1,13 @@
+import os
 import random
 import threading
+import pandas as pd
 
+from openpyxl import load_workbook
+
+from django.db import transaction
+from django.conf import settings
+from django.http import FileResponse
 from django.http import JsonResponse
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -53,7 +60,9 @@ from .serializers import (
     CategorySerializer,
     ProductCategorySerializer,
     OrderSerializer,
-    PaymentSerializer
+    PaymentSerializer,
+    ProductExcelSerializers,
+    CategoryExcelSerializer,
 )
 # from .signals import order_confirmed, create_loyalty_point
 # from django.core.mail import EmailMultiAlternatives
@@ -435,4 +444,66 @@ def order_list_view(request):
         'total_pages': paginator.num_pages,
         'total_orders': paginator.count,
         'orders': data
-    }, safe=False)
+    }, safe=False) # safe is use for except dict
+
+# excel data from here 
+@api_view(['GET'])
+def product_data_download(request):
+    products_data = Product.objects.all()
+    products = ProductExcelSerializers(products_data, many=True)
+    df_products = pd.DataFrame(products.data)
+    
+    category_data = Category.objects.all()    
+    categories = CategoryExcelSerializer(category_data, many=True)
+    df_categories = pd.DataFrame(categories.data)
+
+    with pd.ExcelWriter('products.xlsx', engine='xlsxwriter') as writer:
+        df_products.to_excel(writer,sheet_name='products', startrow=1, header=False, index=False)
+        df_categories.to_excel(writer,sheet_name='category', startrow=1, header=False, index=False)
+
+        workbook  = writer.book
+        product_worksheet = writer.sheets['products']
+        category_worksheet = writer.sheets['category']
+
+        header_format = workbook.add_format({'bold': False})
+
+        for col_num, value in enumerate(df_products.columns.values):
+            product_worksheet.write(0, col_num, value, header_format)
+        
+        for col_num, value in enumerate(df_categories.columns.values):
+            category_worksheet.write(0, col_num, value, header_format)
+        
+        
+    file_path = os.path.join(settings.BASE_DIR, 'products.xlsx')
+    return FileResponse(open(file_path, 'rb'), as_attachment=True, filename='download.xlsx')
+
+@api_view(['POST'])
+def product_data_upload(request):
+    if request.FILES:
+        try:
+            wb = load_workbook(request.FILES['excel_file'])
+            ws = wb['products']
+
+            row = ws.max_row
+            column = ws.max_column
+
+            all_rows = list(ws.rows)
+            wb.close()
+
+            for row in all_rows[1:]:
+                name = row[0].value
+                description = row[1].value
+                category = row[2].value
+                print(name, description, category)
+
+                product = Product.objects.create(name = name, description = description)
+ 
+                try:
+                    category_obj = Category.objects.get(name__iexact = category)
+                    ProductCategory.objects.create(product=product, category=category_obj)
+                except Category.DoesNotExist:
+                    print(f"Category '{category}' not found")
+
+        except Exception as e:
+            return Response({'error':str(e)})
+    return Response({'message':'file upload successfully'})

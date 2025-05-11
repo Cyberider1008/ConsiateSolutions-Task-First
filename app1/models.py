@@ -53,6 +53,9 @@ class PendingUser(models.Model):
     otp = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.username
+
 class ExpiringToken(Token):
     expires = models.DateTimeField()
 

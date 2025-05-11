@@ -35,3 +35,6 @@ uvicorn==0.34.2
 uWSGI==2.0.29
 wsproto==1.2.0
 zope.interface==7.2
+
+
+# pip install gunicorn uwsgi daphne hypercorn uvicornD

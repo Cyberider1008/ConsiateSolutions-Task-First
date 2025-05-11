@@ -38,5 +38,8 @@ urlpatterns = [
     # order list view 
     path('orders_list/', views.order_list_view, name='order-list'),
 
+     path('excel_download/', views.product_data_download),
+     path('excel_upload/', views.product_data_upload),
+
     path("", include(router.urls)),
 ]
