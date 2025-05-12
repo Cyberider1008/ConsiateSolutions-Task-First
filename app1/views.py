@@ -2,12 +2,13 @@ import os
 import random
 import threading
 import pandas as pd
+from io import BytesIO
 
 from openpyxl import load_workbook
 
 from django.db import transaction
 from django.conf import settings
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse, StreamingHttpResponse
 from django.http import JsonResponse
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -327,6 +328,7 @@ class GroupDetailView(generics.RetrieveUpdateDestroyAPIView):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    
 
 # Custom filter set for Product
 class ProductFilter(FilterSet):
@@ -447,35 +449,63 @@ def order_list_view(request):
     }, safe=False) # safe is use for except dict
 
 # excel data from here 
+from rest_framework.decorators import api_view
+from django.http import HttpResponse
+from io import BytesIO
+import pandas as pd
+
 @api_view(['GET'])
 def product_data_download(request):
-    products_data = Product.objects.all()
-    products = ProductExcelSerializers(products_data, many=True)
-    df_products = pd.DataFrame(products.data)
-    
-    category_data = Category.objects.all()    
-    categories = CategoryExcelSerializer(category_data, many=True)
-    df_categories = pd.DataFrame(categories.data)
+    try:
+        product_categories = ProductCategory.objects.all()
+        serializer = ProductCategorySerializer(product_categories, many=True)
 
-    with pd.ExcelWriter('products.xlsx', engine='xlsxwriter') as writer:
-        df_products.to_excel(writer,sheet_name='products', startrow=1, header=False, index=False)
-        df_categories.to_excel(writer,sheet_name='category', startrow=1, header=False, index=False)
+        # Flatten the data
+        flattened_data = [{
+            'category_name': item['category']['name'].capitalize(),
+            'category_description': item['category']['description'],
+            'product_name': item['product']['name'].capitalize(),
+            'product_description': item['product']['description'],
+        } for item in serializer.data]
 
-        workbook  = writer.book
-        product_worksheet = writer.sheets['products']
-        category_worksheet = writer.sheets['category']
+        # Create DataFrame
+        df = pd.DataFrame(flattened_data)
+        df_cleaned = df.sort_values(by=['category_name', 'product_name'])
 
-        header_format = workbook.add_format({'bold': False})
+        # Create Excel in memory
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df_cleaned.to_excel(writer, sheet_name='products', startrow=1, header=False, index=False)
 
-        for col_num, value in enumerate(df_products.columns.values):
-            product_worksheet.write(0, col_num, value, header_format)
+            workbook = writer.book
+            worksheet = writer.sheets['products']
+            header_format = workbook.add_format({'bold': True})
+
+            for col_num, value in enumerate(df_cleaned.columns.values):
+                worksheet.write(0, col_num, value, header_format)
+
+        output.seek(0)
+
+      # Define the file path
+        media_dir = settings.MEDIA_ROOT
+        file_path = os.path.join(media_dir, 'products.xlsx')
+
+        # Create the directory if it doesn't exist
+        os.makedirs(media_dir, exist_ok=True)
+
+
+        # Save the workbook to the specified file
+        with open(file_path, 'wb') as f:
+            f.write(output.getvalue())
+
+        # Return the link to the generated file
+        file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_URL, 'products.xlsx'))
+        return Response({"download_link": file_url}, status=200)
+
+
+    except Exception as e:
+        return HttpResponse(f"Error: {str(e)}", status=500)
         
-        for col_num, value in enumerate(df_categories.columns.values):
-            category_worksheet.write(0, col_num, value, header_format)
-        
-        
-    file_path = os.path.join(settings.BASE_DIR, 'products.xlsx')
-    return FileResponse(open(file_path, 'rb'), as_attachment=True, filename='download.xlsx')
 
 @api_view(['POST'])
 def product_data_upload(request):
@@ -491,18 +521,18 @@ def product_data_upload(request):
             wb.close()
 
             for row in all_rows[1:]:
-                name = row[0].value
-                description = row[1].value
-                category = row[2].value
-                print(name, description, category)
+                category_name = row[0].value
+                # category_description = row[1].value
+                product_name = row[2].value
+                product_description = row[3].value
 
-                product = Product.objects.create(name = name, description = description)
+                product = Product.objects.create(name = product_name, description = product_description)
  
                 try:
-                    category_obj = Category.objects.get(name__iexact = category)
+                    category_obj = Category.objects.get(name__iexact = category_name)
                     ProductCategory.objects.create(product=product, category=category_obj)
                 except Category.DoesNotExist:
-                    print(f"Category '{category}' not found")
+                    print(f"Category '{category_name}' not found")
 
         except Exception as e:
             return Response({'error':str(e)})

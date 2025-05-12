@@ -137,6 +137,8 @@ class GroupSerializer(serializers.ModelSerializer):
 # category and product serializers here
 class CategorySerializer(serializers.ModelSerializer):
 
+    
+
     class Meta:
         model = Category
         fields = ["id", "name", "description", "is_active"]
