@@ -2,8 +2,8 @@ import os
 import random
 import threading
 import pandas as pd
-from io import BytesIO
 
+from io import BytesIO
 from openpyxl import load_workbook
 
 from django.db import transaction
@@ -327,8 +327,55 @@ class GroupDetailView(generics.RetrieveUpdateDestroyAPIView):
 # Product and Category here
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    
+    # serializer_class = CategorySerializer
+
+     # Override list method to manually handle the response
+    def list(self, request, *args, **kwargs):
+        categories = self.get_queryset()
+        data = []
+
+        for category in categories:
+            product_list = []
+
+            for product in category.products.all():
+                product_info = {
+                    "id": product.id,
+                    "name": product.name,
+                    "description": product.description
+                }
+                product_list.append(product_info)
+
+            category_data = {
+                "id": category.id,
+                "name": category.name,
+                "description": category.description,
+                "is_active": category.is_active,
+                "products": product_list
+            }
+            data.append(category_data)
+        return Response(data)
+
+    def create(self, request, *args, **kwargs):
+        name = request.data.get('name')
+        description = request.data.get('description', '')
+        is_active = request.data.get('is_active', True)
+       
+        category = Category.objects.create(
+            name=name,
+            description=description,
+            is_active=is_active
+        )
+
+        category_data = {
+            "id": category.id,
+            "name": category.name,
+            "description": category.description,
+            "is_active": category.is_active,
+           
+        }
+
+        return Response(category_data, status=201)
+
 
 # Custom filter set for Product
 class ProductFilter(FilterSet):

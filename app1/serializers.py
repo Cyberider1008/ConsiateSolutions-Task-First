@@ -134,21 +134,23 @@ class GroupSerializer(serializers.ModelSerializer):
         model = CustomGroupModel
         fields = ["id", "name", "description", "users"]
 
-# category and product serializers here
-class CategorySerializer(serializers.ModelSerializer):
-
-    
-
-    class Meta:
-        model = Category
-        fields = ["id", "name", "description", "is_active"]
-
 class ProductSerializer(serializers.ModelSerializer):
-    categories = CategorySerializer(many=True, read_only=True)
+    # categories = CategorySerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
-        fields = ["id", "name", "description", "categories", "is_active"]
+        fields = ["id", "name", "description","is_active"]
+
+class CategorySerializer(serializers.ModelSerializer):
+
+    products = ProductSerializer(many=True, read_only= True)
+
+    class Meta:
+        model = Category
+        fields = ["id", "name", "description", "is_active",  "products"]
+
+    
+   
 
 class ProductCategorySerializer(serializers.ModelSerializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
