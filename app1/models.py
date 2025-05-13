@@ -71,8 +71,8 @@ class ExpiringToken(Token):
 
 # Product and Category Models here
 class Category(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -80,7 +80,7 @@ class Category(models.Model):
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     categories = models.ManyToManyField('Category', through='ProductCategory', related_name='products')
@@ -96,6 +96,7 @@ class ProductCategory(models.Model):
     class Meta:
         unique_together = ("product", "category")
 
+   
 # oredr and payment
 class Order(models.Model):
     PICKUP = 'PICKUP'

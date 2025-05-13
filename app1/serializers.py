@@ -143,11 +143,19 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class CategorySerializer(serializers.ModelSerializer):
 
-    products = ProductSerializer(many=True, read_only= True)
+    # products = ProductSerializer(many=True, read_only= True)
+    products = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
         fields = ["id", "name", "description", "is_active",  "products"]
+    
+    def get_products(self, obj):
+        Product_data = []
+        for p in obj.products.all():
+            Product_data.append({"id": p.id, "name": p.name, "description":p.description})
+
+        return Product_data
 
     
    
