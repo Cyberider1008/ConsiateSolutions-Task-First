@@ -20,9 +20,9 @@ breakfast_names = [
 
 # Function to generate fake products
 def generate_fake_products():
-    for name in breakfast_names:
+    for name in breakfast_names[:10]:
         # Generate a fake description
-        description = fake.sentence(nb_words=5)  # Creates a random sentence of 10 words
+        description = fake.sentence(nb_words=2)  # Creates a random sentence of 10 words
         
         # Create a new Product instance with the generated name and description
         product = Product(

@@ -25,10 +25,11 @@ from asgiref.sync import async_to_sync
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework import status
 from rest_framework import viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
 
 from datetime import timedelta
 
@@ -44,6 +45,7 @@ from .models import (
     Order,
     OrderItem,
     Payment,
+    Store,
 )
 
 # All Serializers import files
@@ -63,6 +65,9 @@ from .serializers import (
     PaymentSerializer,
     ProductExcelSerializers,
     CategoryExcelSerializer,
+    StoreSerializer,
+    StoreCreateUpdateSerializer,
+    StoreToggleSerializer,
 )
 # from .signals import order_confirmed, create_loyalty_point
 # from django.core.mail import EmailMultiAlternatives
@@ -169,11 +174,9 @@ def login_view(request):
         if user:
             token, created = ExpiringToken.objects.get_or_create(user=user)
 
-            if created:
-                token.expires = timezone.now() + timedelta(
-                    minutes=1
-                )  # Set token to expire in 1 minute
-
+            if not created and token.is_expired():
+                token.delete()
+                token = ExpiringToken.objects.create(user=user)
                 token.save()
 
         return Response(
@@ -537,3 +540,52 @@ def product_data_upload(request):
         except Exception as e:
             return Response({'error':str(e)})
     return Response({'message':'file upload successfully'})
+
+########store#######
+class StoreViewSet(viewsets.ModelViewSet):
+    queryset = Store.objects.all()
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return StoreCreateUpdateSerializer
+        return StoreSerializer
+
+    def perform_create(self, serializer):
+        custom_user = CustomUserModel.objects.get(id=self.request.user.id)
+        serializer.save(owner=custom_user)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated]) 
+    def toggle_open(self, request, pk=None): #http://127.0.0.1:8000/stores/1/toggle_open/
+        store = get_object_or_404(Store, pk=pk, owner=request.user)
+        store.is_open = not store.is_open
+        
+        store.save()
+        store.refresh_from_db()
+        return Response({
+            "status": "success",
+            "store": store.store_name,
+            "is_open": store.is_open,
+            "is_currently_open": store.is_currently_open()
+        })
+
+class VisibleCategoriesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, store_id):
+        try:
+            store = Store.objects.get(pk=store_id)
+            if store.is_currently_open():
+                categories = store.categories.filter(is_active=True)
+                serializer = CategorySerializer(categories, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response(
+                    {"message": "Store is currently closed"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Store.DoesNotExist:
+            return Response(
+                {"error": "Store not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )

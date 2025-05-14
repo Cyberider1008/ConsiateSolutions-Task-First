@@ -62,12 +62,14 @@ class ExpiringToken(Token):
     def save(self, *args, **kwargs):
         if not self.expires:
             self.expires = timezone.now() + timedelta(
-                minutes=1
+                minutes=10
             )  # Set the token to expire after 1 minute
         super().save(*args, **kwargs)
 
     def is_expired(self):
         return timezone.now() > self.expires
+    
+   
 
 # Product and Category Models here
 class Category(models.Model):
@@ -85,7 +87,6 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True)
     categories = models.ManyToManyField('Category', through='ProductCategory', related_name='products')
     
-
     def __str__(self):
         return self.name
 
@@ -161,3 +162,34 @@ class Payment(models.Model):
     def __str__(self):
         return str(self.payment_amount) + "  " + self.payment_mode
 
+class Store(models.Model):
+    store_name = models.CharField(max_length=100)
+    store_location = models.CharField(max_length=100)
+    contact_number = models.CharField(max_length=10, blank=True, null=True)
+    email = models.EmailField(null=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+
+    opening_time = models.TimeField()
+    closing_time = models.TimeField()
+    is_open = models.BooleanField(default=True)
+
+    categories = models.ManyToManyField(Category, related_name='stores_categories')
+
+    owner = models.ForeignKey(CustomUserModel,
+                on_delete=models.CASCADE,
+                related_name='store_owner'
+            )
+    def is_currently_open(self):
+        now = timezone.localtime().time()
+         # Manual override takes priority
+        
+        if self.is_open:
+            return True
+        else: 
+            return False
+            
+        
+        # return self.opening_time <= now <= self.closing_time
+
+    def __str__(self):
+        return self.store_name

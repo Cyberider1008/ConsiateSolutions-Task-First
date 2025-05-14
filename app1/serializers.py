@@ -14,6 +14,7 @@ from .models import (
     Order,
     OrderItem,
     Payment,
+    Store,
 )
 
 User = get_user_model()
@@ -157,9 +158,6 @@ class CategorySerializer(serializers.ModelSerializer):
 
         return Product_data
 
-    
-   
-
 class ProductCategorySerializer(serializers.ModelSerializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
@@ -278,4 +276,60 @@ class CategoryExcelSerializer(serializers.ModelSerializer):
         return [prod.name for prod in products] if products.exists() else ""
    
 
+###########store################
+class StoreSerializer(serializers.ModelSerializer):
+    categories = CategorySerializer(many=True, read_only=True)
+    is_currently_open = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Store
+        fields = (
+            'id',
+            'store_name',
+            'store_location',
+            'contact_number',
+            'email',
+            'description',
+            'opening_time',
+            'closing_time',
+            'is_open',
+            'is_currently_open',
+            'categories',
+        )
+    def get_is_currently_open(self, obj):
+        return obj.is_currently_open()
     
+# for togging open and close
+class StoreToggleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Store
+        fields = ['is_open']
+
+class StoreCreateUpdateSerializer(serializers.ModelSerializer):
+    categories = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Category.objects.all()
+    )
+
+    class Meta:
+        model = Store
+        fields = [
+            'store_name', 'store_location', 'contact_number', 'email',
+            'description', 'opening_time', 'closing_time', 'is_open', 'categories'
+        ]
+
+        def create(self, validated_data):
+            if 'categories' in validated_data:
+                categories = validated_data.pop('categories', [])
+                store = Store.objects.create(**validated_data)
+                store.categories.set(categories)
+                return store
+
+    def update(self, instance, validated_data):
+        categories = validated_data.pop('categories', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if categories is not None:
+            instance.categories.set(categories)
+        return instance

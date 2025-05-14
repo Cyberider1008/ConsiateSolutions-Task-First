@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     "django_filters",
     # websockets
     'channels',
-
+    
 ]
 ASGI_APPLICATION = "MegaMealService.asgi.application"
 
@@ -53,12 +53,15 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
     ],
+    
 }
 
-AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-    # other backends
-]
+
+
+# AUTHENTICATION_BACKENDS = [
+#     "django.contrib.auth.backends.ModelBackend",
+#     # other backends
+# ] # thts's for login form 
 # Email setting
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"

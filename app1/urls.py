@@ -13,6 +13,8 @@ router.register(r"product-categories", views.ProductCategoryViewSet)
 # placeorder
 router.register(r'orders', views.PlaceOrderViewSet, basename='order')
 router.register(r'payments', views.PaymentViewSet, basename='payment')
+#store
+router.register(r'stores', views.StoreViewSet, basename='store')
 
 urlpatterns = [
     # Auth
@@ -42,10 +44,13 @@ urlpatterns = [
     # order list view 
     path('orders_list/', views.order_list_view, name='order-list'),
 
-     path('excel_download/', views.product_data_download),
-     path('excel_upload/', views.product_data_upload),
+    path('excel_download/', views.product_data_download),
+    path('excel_upload/', views.product_data_upload),
 
     path("", include(router.urls)),
+    #store
+    path('stores/<int:store_id>/visible-categories/', views.VisibleCategoriesView.as_view(), name='visible-categories'),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
